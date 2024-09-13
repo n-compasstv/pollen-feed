@@ -44,19 +44,36 @@ div {
 }
 
 .content-wrapper {
-    text-align: center;
+    text-align: start;
+    width: 100%;
 }
 
 .gauge-container {
     display: flex;
     flex-wrap: wrap; /* Enable wrapping */
     gap: 40px;
+    margin-bottom: 30px;
     justify-content: center;
     width: 100%;
 }
 
-.gauge-time-label {
+.display-texts {
+    text-align: center;
+}
+
+.logo-container {
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.category-label {
     font-size: 22px;
+    font-weight: bold;
+    margin-bottom: 0;
+}
+
+.gauge-time-label {
+    font-size: 18px;
     font-weight: bold;
     margin-bottom: 10px;
 }
@@ -68,8 +85,7 @@ div {
 }
 
 .logo {
-    margin-bottom: 20px;
-    width: 250px;
+    width: 400px;
 }
 
 .title {
@@ -80,7 +96,7 @@ div {
 
 .date-display {
     color: #fff;
-    font-size: 35px;
+    font-size: 40px;
     font-weight: bold;
     margin: 0 0 40px 0;
 }

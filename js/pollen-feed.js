@@ -1,18 +1,13 @@
 /**
  * @file app.js
- * @description This JavaScript file is responsible for fetching and displaying mold level data from the PollenSense API.
- * It uses a gauge to display the current mold level and provides a list of hourly mold levels with corresponding times.
+ * @description This JavaScript file is responsible for fetching and displaying mold and other category level data from the PollenSense API.
+ * It uses a gauge to display the current level and provides a list of hourly levels with corresponding times.
  * The data is fetched dynamically based on either the current date or a date passed via the URL as a query parameter.
- *
- * Features:
- * - Fetches hourly mold level data from the PollenSense API.
- * - Displays mold levels in a gauge with zones for low, medium, and high levels.
- * - Lists the hourly mold levels with timestamps.
- * - Provides easy-to-edit global variables for API URLs, API keys, timezones, and other configuration values.
+ * Category codes are also passed via the URL to determine which data to display.
  *
  * Author: Earl Vhin Gabuat
  *
- * @version 1.0.0
+ * @version 1.1.0
  * @since 2024-09-12
  */
 
@@ -37,51 +32,58 @@ function getUrlParameter(name) {
 }
 
 /**
- * Converts a date to US Eastern Time and formats it in ISO 8601 format (YYYY-MM-DDTHH:MM:SSZ).
- * @param {Date} date - The date to format.
- * @returns {string} The formatted date in ISO 8601 format.
+ * Converts a passed date string (YYYY-MM-DD) to a UTC format string (YYYY-MM-DDTHH:MM:SSZ),
+ * keeping the date intact but adjusting the time part.
+ * @param {string} dateString - The original date string (YYYY-MM-DD) to format.
+ * @param {boolean} isEndOfDay - Whether to set the time to the end of the day (23:59:59).
+ * @returns {string} The formatted date string in UTC (YYYY-MM-DDTHH:MM:SSZ).
  */
-function getFormattedDate(date) {
-    const easternTime = new Date(date.toLocaleString('en-US', { timeZone: config.timezone }));
-    return easternTime.toISOString().split('.')[0] + 'Z';
+function getFormattedDateUTC(dateString, isEndOfDay = false) {
+    const timePart = isEndOfDay ? '23:59:59' : '00:00:00'; // Set time to either start or end of the day
+    const formattedDate = `${dateString}T${timePart}Z`; // Combine date with the time and append 'Z' for UTC
+
+    return formattedDate; // Return the formatted date
 }
 
 /**
- * Converts a date to US Eastern Time and formats it in a human-readable format (e.g., September 12, 2024).
- * @param {Date} date - The date to format.
+ * Converts a date string (YYYY-MM-DD) into a human-readable format (e.g., September 12, 2024).
+ * @param {string} dateString - The date string in YYYY-MM-DD format.
  * @returns {string} The formatted date in "Month Day, Year" format.
  */
-function getHumanReadableDate(date) {
+function getHumanReadableDate(dateString) {
+    const [year, month, day] = dateString.split('-'); // Split the string into year, month, and day parts
+    const date = new Date(year, month - 1, day); // Create a new Date object (month is 0-indexed)
+
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    const easternTime = new Date(date.toLocaleString('en-US', { timeZone: config.timezone }));
-    return easternTime.toLocaleDateString('en-US', options);
+    return date.toLocaleDateString('en-US', options); // Return formatted date
 }
 
 /**
- * Fetches mold data from the PollenSense API.
- * @returns {Promise<Object>} A promise that resolves to an object containing moments, PPM3 data, and Misery data.
+ * Fetches data for the given category codes from the API and returns the moments and category data.
+ * The date range is determined either by a URL query parameter or defaults to today's date.
+ * It formats the starting and ending dates in UTC format for the API request.
+ *
+ * @param {Array<string>} categoryCodes - Array of category codes to fetch data for.
+ * @returns {Promise<Object>} A promise that resolves to an object containing `moments` and `categories`.
  */
-async function getMoldData() {
-    const urlDate = getUrlParameter('date');
-    let startingDate, endingDate;
+async function getDataByCategory(categoryCodes) {
+    let urlDate = getUrlParameter('date');
 
-    if (urlDate) {
-        startingDate = new Date(`${urlDate}T00:00:00`);
-        endingDate = new Date(`${urlDate}T23:59:59`);
-    } else {
+    // If no date is provided in the URL, use the current date
+    if (!urlDate) {
         const today = new Date();
-        startingDate = new Date(today.setHours(0, 0, 0, 0));
-        endingDate = new Date();
+        urlDate = today.toISOString().split('T')[0]; // Use current date in YYYY-MM-DD format
     }
 
-    const formattedStartingDate = getFormattedDate(startingDate);
-    const formattedEndingDate = getFormattedDate(endingDate);
+    // Format the start and end of the selected or current day
+    const startingDate = getFormattedDateUTC(urlDate, false); // Start at 00:00:00 UTC
+    const endingDate = getFormattedDateUTC(urlDate, true); // End at 23:59:59 UTC
 
-    // Update the date display to use human-readable format
-    document.getElementById('dateDisplay').textContent = getHumanReadableDate(startingDate);
+    // Update the date display to a human-readable format
+    document.getElementById('dateDisplay').textContent = getHumanReadableDate(urlDate);
 
     const response = await fetch(
-        `${config.apiUrl}?interval=${config.defaultInterval}&starting=${formattedStartingDate}&ending=${formattedEndingDate}`,
+        `${config.apiUrl}?interval=${config.defaultInterval}&starting=${startingDate}&ending=${endingDate}`,
         {
             headers: {
                 'X-Ps-Key': config.apiKey,
@@ -90,43 +92,65 @@ async function getMoldData() {
     );
 
     const data = await response.json();
-    const moldCategory = data.Categories.find((category) => category.CategoryCode === 'MOL');
+
     return {
         moments: data.Moments,
-        PPM3: moldCategory.PPM3,
-        Misery: moldCategory.Misery || [], // Misery index values if available
+        categories: categoryCodes.map((code) => {
+            return data.Categories.find((category) => category.CategoryCode === code);
+        }),
     };
 }
 
-/**
- * Dynamically creates and displays gauges based on the given misery values, normalized to a 0-100% scale.
- * Adds the hour above the gauge and PPM value below the gauge.
- * @param {Array<number>} lastFourPPM - The last 2 to 4 raw mold PPM values.
- * @param {Array<string>} moments - Corresponding times for the PPM values.
- * @param {Array<number>} miseryValues - Corresponding misery index values (0-100 scale).
- */
-function displayGauges(lastFourPPM, moments, miseryValues) {
+function displayGaugesForCategories(categoriesData, moments) {
     const gaugeContainer = document.getElementById('gaugeContainer');
     gaugeContainer.innerHTML = ''; // Clear any existing gauges
 
-    lastFourPPM.forEach((ppm, index) => {
-        const miseryValue = miseryValues[index] ? (miseryValues[index] * 100).toFixed(2) : 'N/A';
+    categoriesData.forEach((categoryData, index) => {
+        if (!categoryData) return; // Skip if category data is not available
 
-        // Create a container div for each gauge (with hour and PPM labels)
+        // Find the last non-null PPM and Misery values along with their corresponding moment
+        let latestValidIndex = categoryData.PPM3.length - 1;
+
+        // Traverse backwards to find the last valid PPM and Misery values
+        while (latestValidIndex >= 0 && categoryData.PPM3[latestValidIndex] === null) {
+            latestValidIndex--;
+        }
+
+        // If no valid data found, skip this category
+        if (latestValidIndex === -1) {
+            return;
+        }
+
+        const latestPPM = categoryData.PPM3[latestValidIndex];
+        const latestMisery = categoryData.Misery ? (categoryData.Misery[latestValidIndex] * 100).toFixed(2) : 'N/A';
+        const latestTime = moments[latestValidIndex]; // Corresponding moment for PPM and Misery
+
+        // Create a container div for each gauge (with time, category description, and PPM labels)
         const canvasContainer = document.createElement('div');
         canvasContainer.classList.add('canvas-container');
 
-        // Create the hour label above the gauge
+        // Create the category description label
+        const categoryLabel = document.createElement('div');
+        categoryLabel.classList.add('gauge-category-label');
+        categoryLabel.textContent = categoryData.CategoryDescription || 'Unknown Category';
+
+        // Create the time label above the gauge, formatted as "As of [time]"
         const timeLabel = document.createElement('div');
         timeLabel.classList.add('gauge-time-label');
-        const time = new Date(moments[index]).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true,
-        });
-        timeLabel.textContent = `Time: ${time}`;
 
-        // Create canvas element for the gauge
+        // Display time in 12-hour format with AM/PM
+        const time = latestTime.split('T')[1].split(':').slice(0, 2).join(':'); // Extract HH:MM from UTC string
+        let [hour, minute] = time.split(':'); // Split hours and minutes
+        hour = parseInt(hour, 10); // Convert hour to integer
+
+        // Convert from 24-hour format to 12-hour format
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        hour = hour % 12 || 12; // Convert 0 to 12 for midnight and adjust hours greater than 12
+
+        // Display the time in 12-hour format with AM/PM
+        timeLabel.textContent = `As of ${hour}:${minute} ${ampm}`;
+
+        // Create the canvas element for the gauge
         const canvas = document.createElement('canvas');
         canvas.id = `gaugeCanvas${index + 1}`;
         canvas.width = 300;
@@ -135,9 +159,13 @@ function displayGauges(lastFourPPM, moments, miseryValues) {
         // Create the PPM label below the gauge
         const ppmLabel = document.createElement('div');
         ppmLabel.classList.add('gauge-ppm-label');
-        ppmLabel.textContent = `PPM: ${ppm.toFixed(2)} | Misery: ${miseryValue}%`;
 
-        // Append time, canvas, and PPM label to the container div
+        // Check if latestMisery is not available
+        const miseryText = latestMisery === 'N/A' ? 'Not Available' : `${latestMisery}%`;
+        ppmLabel.textContent = `PPM: ${latestPPM.toFixed(2)} | Misery: ${miseryText}`;
+
+        // Append the category, time, canvas, and PPM label to the container div
+        canvasContainer.appendChild(categoryLabel);
         canvasContainer.appendChild(timeLabel);
         canvasContainer.appendChild(canvas);
         canvasContainer.appendChild(ppmLabel);
@@ -186,63 +214,23 @@ function displayGauges(lastFourPPM, moments, miseryValues) {
         gauge.maxValue = 100; // 100% is the max value for the gauge
         gauge.setMinValue(0); // Start at 0
         gauge.animationSpeed = 32;
-        gauge.set(miseryValues[index] * 100); // Set the Misery value as the gauge input
+        gauge.set(latestMisery); // Set the Misery value as the gauge input
     });
 }
 
 /**
- * Displays the mold data with time labels.
- * @param {Array<string>} moments - Array of time moments.
- * @param {Array<number>} PPM3 - Array of mold PPM3 values corresponding to the moments.
- */
-function displayMoldData(moments, PPM3) {
-    const moldDataContainer = document.getElementById('moldDataContainer');
-    moldDataContainer.innerHTML = ''; // Clear any previous content
-
-    moments.forEach((moment, index) => {
-        const ppmValue = PPM3[index];
-        if (ppmValue !== null) {
-            const time = new Date(moment).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true,
-            });
-
-            const recordItem = document.createElement('div');
-            recordItem.className = 'record-item';
-
-            const recordTime = document.createElement('div');
-            recordTime.className = 'record-time';
-            recordTime.textContent = time;
-
-            const recordPPM = document.createElement('div');
-            recordPPM.className = 'record-ppm';
-            recordPPM.textContent = `${ppmValue.toFixed(2)} PPM`;
-
-            recordItem.appendChild(recordTime);
-            recordItem.appendChild(recordPPM);
-
-            moldDataContainer.appendChild(recordItem);
-        }
-    });
-}
-
-/**
- * Initializes the page by fetching the mold data and displaying the available values (up to 4).
+ * Initializes the page by fetching data based on CategoryCode and displaying the gauges.
  */
 async function init() {
-    const { moments, PPM3, Misery } = await getMoldData();
+    // Get the category codes from the URL
+    const categoryCodesParam = getUrlParameter('categoryCodes');
+    const categoryCodes = categoryCodesParam ? categoryCodesParam.split(',') : ['POL'];
 
-    const validPPM = PPM3.filter((ppm) => ppm !== null);
-    const validMoments = moments.filter((_, index) => PPM3[index] !== null);
-    const validMisery = Misery.filter((misery) => misery !== null);
+    // Fetch data for the given category codes
+    const { moments, categories } = await getDataByCategory(categoryCodes);
 
-    const lastFourPPM = validPPM.slice(-4);
-    const lastFourMoments = validMoments.slice(-4);
-    const lastFourMisery = validMisery.slice(-4);
-
-    displayGauges(lastFourPPM, lastFourMoments, lastFourMisery);
-    // displayMoldData(moments, PPM3);
+    // Display gauges for each category
+    displayGaugesForCategories(categories, moments);
 }
 
 // Initialize the page when loaded
