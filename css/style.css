@@ -57,6 +57,17 @@ div {
     width: 100%;
 }
 
+.gauge-category-label {
+    background-color: rgb(119, 179, 23);
+    border-radius: 999px;
+    color: #fff;
+    display: inline-block;
+    font-weight: bold;
+    font-size: 20px;
+    margin-bottom: 15px;
+    padding: 5px 20px;
+}
+
 .display-texts {
     text-align: center;
 }
