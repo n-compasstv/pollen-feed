@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Mold Levels Gauge</title>
+        <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700&display=swap" rel="stylesheet" />
+        <link rel="stylesheet" href="css/style.css" />
+    </head>
+    <body>
+        <div id="container">
+            <!-- Left side content -->
+            <div class="content-wrapper">
+                <img src="assets/White-Condensed Primary.png" class="logo" alt="pollen-sense-logo" />
+                <h1 class="title">Mold Levels in the Area</h1>
+                <p class="date-display" id="dateDisplay">Loading date...</p>
+                <div id="gaugeContainer" class="gauge-container">
+                    <!-- Create multiple canvas elements for four gauges -->
+                    <canvas id="gaugeCanvas1"></canvas>
+                    <canvas id="gaugeCanvas2"></canvas>
+                    <canvas id="gaugeCanvas3"></canvas>
+                    <canvas id="gaugeCanvas4"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Load external scripts -->
+        <script src="js/gauge.min.js"></script>
+        <script src="js/pollen-feed.js"></script>
+    </body>
+</html>
