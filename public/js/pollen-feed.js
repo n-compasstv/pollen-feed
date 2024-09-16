@@ -11,8 +11,15 @@
  * @since 2024-09-12
  */
 
-import { gaugeOptions } from './gauge.config.js';
-import { apiConfig } from './api.config.js';
+/**
+ * Configuration object for API details and other global variables.
+ */
+const config = {
+    apiUrl: 'https://sensors.pollensense.com/api/sites/379ec159-ac99-43bf-9d2d-a2371638b942/metrics',
+    apiKey: 'm0sncI7JMb8jLj4prR6ZojN08wadP2sxAV4ZIx9DCyKJhxtf6HjEARwOqZkhh1MSBXAfzXSW9oarlh84Ao9sCye',
+    defaultInterval: 'hour', // Can be changed to 'day', 'week', etc.
+    timezone: 'America/New_York', // Default timezone
+};
 
 /**
  * Retrieves a URL query parameter value by name.
@@ -34,6 +41,7 @@ function getUrlParameter(name) {
 function getFormattedDateUTC(dateString, isEndOfDay = false) {
     const timePart = isEndOfDay ? '23:59:59' : '00:00:00'; // Set time to either start or end of the day
     const formattedDate = `${dateString}T${timePart}Z`; // Combine date with the time and append 'Z' for UTC
+
     return formattedDate; // Return the formatted date
 }
 
@@ -51,16 +59,15 @@ function getHumanReadableDate(dateString) {
 }
 
 /**
- * Fetches data for the given category codes from the API and caches it in localStorage.
- * If cached data exists and is less than an hour old, the cached data is returned unless the `noCache` parameter is provided.
- * The `noCache` parameter in the URL allows bypassing the cache and fetching fresh data from the API.
+ * Fetches data for the given category codes from the API and returns the moments and category data.
+ * The date range is determined either by a URL query parameter or defaults to today's date.
+ * It formats the starting and ending dates in UTC format for the API request.
  *
  * @param {Array<string>} categoryCodes - Array of category codes to fetch data for.
  * @returns {Promise<Object>} A promise that resolves to an object containing `moments` and `categories`.
  */
 async function getDataByCategory(categoryCodes) {
     let urlDate = getUrlParameter('date');
-    const noCache = getUrlParameter('noCache') === 'true'; // Check if noCache is set in the URL
 
     // If no date is provided in the URL, use the current date
     if (!urlDate) {
@@ -75,46 +82,23 @@ async function getDataByCategory(categoryCodes) {
     // Update the date display to a human-readable format
     document.getElementById('dateDisplay').textContent = getHumanReadableDate(urlDate);
 
-    // Retrieve the last request time and stored data from localStorage
-    const lastRequestTime = localStorage.getItem('lastRequestTime');
-    const storedPollenData = JSON.parse(localStorage.getItem('pollenData'));
-
-    // Check if data exists and the request was made within the last hour, but skip if noCache is true
-    const oneHourInMilliseconds = 60 * 60 * 1000;
-    const currentTime = new Date().getTime();
-
-    if (!noCache && lastRequestTime && storedPollenData && currentTime - lastRequestTime < oneHourInMilliseconds) {
-        console.log('Using cached data');
-        return storedPollenData; // Return cached data
-    } else {
-        console.log('Fetching new data from API');
-
-        // Fetch new data from API
-        const response = await fetch(
-            `${apiConfig.apiUrl}?interval=${apiConfig.defaultInterval}&starting=${startingDate}&ending=${endingDate}`,
-            {
-                headers: {
-                    'X-Ps-Key': apiConfig.apiKey,
-                },
+    const response = await fetch(
+        `${config.apiUrl}?interval=${config.defaultInterval}&starting=${startingDate}&ending=${endingDate}`,
+        {
+            headers: {
+                'X-Ps-Key': config.apiKey,
             },
-        );
+        },
+    );
 
-        const data = await response.json();
+    const data = await response.json();
 
-        // Cache the fetched data and request time in localStorage
-        const responseData = {
-            moments: data.Moments,
-            categories: categoryCodes.map((code) => {
-                return data.Categories.find((category) => category.CategoryCode === code);
-            }),
-        };
-
-        // Save to localStorage
-        localStorage.setItem('pollenData', JSON.stringify(responseData));
-        localStorage.setItem('lastRequestTime', currentTime);
-
-        return responseData; // Return the fetched data
-    }
+    return {
+        moments: data.Moments,
+        categories: categoryCodes.map((code) => {
+            return data.Categories.find((category) => category.CategoryCode === code);
+        }),
+    };
 }
 
 function displayGaugesForCategories(categoriesData, moments) {
@@ -190,9 +174,43 @@ function displayGaugesForCategories(categoriesData, moments) {
         gaugeContainer.appendChild(canvasContainer);
 
         // Create the gauge for each value
-        const opts = gaugeOptions;
-        const gauge = new Gauge(canvas).setOptions(opts);
+        const opts = {
+            angle: 0.15,
+            lineWidth: 0.44,
+            radiusScale: 1,
+            pointer: {
+                length: 0.8,
+                strokeWidth: 0.035,
+                color: '#000000',
+            },
+            limitMax: true,
+            limitMin: true,
+            highDpiSupport: true,
+            staticZones: [
+                { strokeStyle: '#30B32D', min: 0, max: 24 }, // Low (0-24%)
+                { strokeStyle: '#FFDD00', min: 25, max: 49 }, // Moderate (25-49%)
+                { strokeStyle: '#F39C12', min: 50, max: 74 }, // High (50-74%)
+                { strokeStyle: '#E74C3C', min: 75, max: 100 }, // Very High (75-100%)
+            ],
+            staticLabels: {
+                font: '12px sans-serif',
+                labels: [0, 25, 50, 75, 100],
+                color: '#000000',
+                fractionDigits: 0,
+            },
+            renderTicks: {
+                divisions: 4,
+                divWidth: 1.1,
+                divLength: 0.7,
+                divColor: '#333333',
+                subDivisions: 3,
+                subLength: 0.5,
+                subWidth: 0.6,
+                subColor: '#666666',
+            },
+        };
 
+        const gauge = new Gauge(canvas).setOptions(opts);
         gauge.maxValue = 100; // 100% is the max value for the gauge
         gauge.setMinValue(0); // Start at 0
         gauge.animationSpeed = 32;
