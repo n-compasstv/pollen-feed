@@ -61,6 +61,7 @@ function getHumanReadableDate(dateString) {
 async function getDataByCategory(categoryCodes) {
     let urlDate = getUrlParameter('date');
     const noCache = getUrlParameter('noCache') === 'true'; // Check if noCache is set in the URL
+    const interval = getUrlParameter('interval');
 
     // If no date is provided in the URL, use the current date
     if (!urlDate) {
@@ -73,7 +74,9 @@ async function getDataByCategory(categoryCodes) {
     const endingDate = getFormattedDateUTC(urlDate, true); // End at 23:59:59 UTC
 
     // Update the date display to a human-readable format
-    document.getElementById('dateDisplay').textContent = getHumanReadableDate(urlDate);
+    if (urlDate) {
+        document.getElementById('dateDisplay').textContent = getHumanReadableDate(urlDate);
+    }
 
     // Retrieve the last request time and stored data from localStorage
     const lastRequestTime = localStorage.getItem('lastRequestTime');
@@ -91,7 +94,9 @@ async function getDataByCategory(categoryCodes) {
 
         // Fetch new data from API
         const response = await fetch(
-            `${apiConfig.apiUrl}?interval=${apiConfig.defaultInterval}&starting=${startingDate}&ending=${endingDate}`,
+            `${apiConfig.apiUrl}?interval=${
+                interval || apiConfig.defaultInterval
+            }&starting=${startingDate}&ending=${endingDate}`,
             {
                 headers: {
                     'X-Ps-Key': apiConfig.apiKey,
@@ -118,7 +123,16 @@ async function getDataByCategory(categoryCodes) {
 }
 
 function displayGaugesForCategories(categoriesData, moments) {
+    let urlDate = getUrlParameter('date');
     const gaugeContainer = document.getElementById('gaugeContainer');
+    const interval = getUrlParameter('interval');
+
+    // If no date is provided in the URL, use the current date
+    if (!urlDate) {
+        const today = new Date();
+        urlDate = today.toISOString().split('T')[0]; // Use current date in YYYY-MM-DD format
+    }
+
     gaugeContainer.innerHTML = ''; // Clear any existing gauges
 
     categoriesData.forEach((categoryData, index) => {
@@ -164,7 +178,7 @@ function displayGaugesForCategories(categoriesData, moments) {
         hour = hour % 12 || 12; // Convert 0 to 12 for midnight and adjust hours greater than 12
 
         // Display the time in 12-hour format with AM/PM
-        timeLabel.textContent = `As of ${hour}:${minute} ${ampm}`;
+        timeLabel.textContent = interval == 'day' ? `` : `As of ${hour}:${minute} ${ampm}`;
 
         // Create the canvas element for the gauge
         const canvas = document.createElement('canvas');
@@ -182,9 +196,9 @@ function displayGaugesForCategories(categoriesData, moments) {
 
         // Append the category, time, canvas, and PPM label to the container div
         canvasContainer.appendChild(categoryLabel);
-        canvasContainer.appendChild(timeLabel);
         canvasContainer.appendChild(canvas);
-        canvasContainer.appendChild(ppmLabel);
+        canvasContainer.appendChild(timeLabel);
+        // canvasContainer.appendChild(ppmLabel);
 
         // Append the container div to the gaugeContainer
         gaugeContainer.appendChild(canvasContainer);
