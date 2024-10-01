@@ -13,6 +13,21 @@ div {
     box-sizing: border-box;
 }
 
+.disclaimer {
+    background: rgba(0, 0, 0, 0.6);
+    position: absolute;
+    bottom: 20px;
+    left: 0;
+    padding: 10px;
+    width: 100%;
+    text-align: center;
+}
+
+.disclaimer p {
+    color: #fff;
+    margin: 0;
+}
+
 #container {
     align-items: center;
     justify-content: center;
@@ -65,7 +80,7 @@ div {
     display: inline-block;
     font-weight: bold;
     font-size: 20px;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
     padding: 5px 20px;
 }
 
@@ -74,8 +89,16 @@ div {
 }
 
 .logo-container {
-    margin-bottom: 30px;
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    left: 0;
+    padding: 20px;
+    padding-right: 25px;
+    position: absolute;
     text-align: center;
+    top: 0;
+    width: 100%;
 }
 
 .category-label {
@@ -87,7 +110,6 @@ div {
 .gauge-time-label {
     font-size: 18px;
     font-weight: bold;
-    margin-bottom: 10px;
 }
 
 .gauge-ppm-label {
@@ -97,20 +119,19 @@ div {
 }
 
 .logo {
-    width: 400px;
+    width: 330px;
 }
 
 .title {
     color: #fff;
-    font-size: 60px;
-    margin: 0 0 5px 0;
+    font-size: 50px;
+    margin: 0 0 50px 0;
 }
 
 .date-display {
     color: #fff;
-    font-size: 40px;
+    font-size: 45px;
     font-weight: bold;
-    margin: 0 0 40px 0;
 }
 
 /* Add media queries for smaller screens */
