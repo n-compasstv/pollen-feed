@@ -126,6 +126,7 @@ function displayGaugesForCategories(categoriesData, moments) {
     let urlDate = getUrlParameter('date');
     const gaugeContainer = document.getElementById('gaugeContainer');
     const interval = getUrlParameter('interval');
+    const displayTime = getUrlParameter('time');
 
     // If no date is provided in the URL, use the current date
     if (!urlDate) {
@@ -197,7 +198,8 @@ function displayGaugesForCategories(categoriesData, moments) {
         // Append the category, time, canvas, and PPM label to the container div
         canvasContainer.appendChild(categoryLabel);
         canvasContainer.appendChild(canvas);
-        canvasContainer.appendChild(timeLabel);
+        console.log({ displayTime });
+        if (displayTime !== '0') canvasContainer.appendChild(timeLabel);
         // canvasContainer.appendChild(ppmLabel);
 
         // Append the container div to the gaugeContainer

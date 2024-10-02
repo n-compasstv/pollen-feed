@@ -39,7 +39,7 @@ div {
 }
 
 #container::before {
-    background-color: rgba(0, 0, 0, 0.65);
+    background-color: rgba(0, 0, 0, 0.75);
     content: ' ';
     position: absolute;
     height: 100%;
@@ -88,19 +88,6 @@ div {
     text-align: center;
 }
 
-.logo-container {
-    align-items: center;
-    display: flex;
-    justify-content: space-between;
-    left: 0;
-    padding: 20px;
-    padding-right: 25px;
-    position: absolute;
-    text-align: center;
-    top: 0;
-    width: 100%;
-}
-
 .category-label {
     font-size: 22px;
     font-weight: bold;
@@ -118,8 +105,18 @@ div {
     margin-top: 10px;
 }
 
+.logo-and-date {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+}
+
 .logo {
-    width: 330px;
+    position: absolute;
+    width: 200px;
+    left: 80px;
+    top: 20px;
 }
 
 .title {
@@ -129,9 +126,13 @@ div {
 }
 
 .date-display {
+    position: absolute;
     color: #fff;
     font-size: 45px;
     font-weight: bold;
+    right: 90px;
+    top: 20px;
+    z-index: 99999999999999;
 }
 
 /* Add media queries for smaller screens */
